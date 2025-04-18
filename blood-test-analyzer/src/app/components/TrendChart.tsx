@@ -10,6 +10,7 @@ interface Biomarker {
     min: number;
     max: number;
   };
+  description?: string;
 }
 
 interface AnalysisResult {

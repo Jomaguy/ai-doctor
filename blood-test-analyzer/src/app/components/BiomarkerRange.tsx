@@ -18,6 +18,7 @@ export interface BiomarkerRangeProps {
   low?: number;
   high?: number;
   criticalHigh?: number;
+  description?: string;
 }
 
 // List of known valid biomarkers
@@ -86,10 +87,24 @@ const VALID_BIOMARKERS = [
 
 // Helper function to determine if a biomarker is valid
 export const isValidBiomarker = (name: string): boolean => {
+  // Normalize name - remove newlines and extra spaces
+  const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
+  
+  // Standalone words that should not be considered biomarkers
+  const standaloneExclusions = [
+    'high', 'low', 'normal', 'optimal', 'reference', 'range', 
+    'results', 'elevated', 'decreased', 'value', 'test', 'standard',
+    'pending', 'final', 'see', 'note', 'positive', 'negative'
+  ];
+  
+  // Reject if it's just a standalone excluded word
+  if (standaloneExclusions.includes(normalizedName)) {
+    return false;
+  }
+  
   // Check if it's in our predefined list (case-insensitive)
   const isInList = VALID_BIOMARKERS.some(
     validName => {
-      const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
       const normalizedValid = validName.toLowerCase().replace(/\s+/g, ' ').trim();
       return normalizedName === normalizedValid || 
              normalizedName.includes(normalizedValid) ||
@@ -121,6 +136,7 @@ export default function BiomarkerRange({
   low = referenceRange?.min,
   high = referenceRange?.max,
   criticalHigh = referenceRange ? referenceRange.max * 1.3 : undefined,
+  description,
 }: BiomarkerRangeProps) {
   // Skip rendering if the biomarker name is not valid
   if (!isValidBiomarker(name)) {
@@ -219,6 +235,13 @@ export default function BiomarkerRange({
           <div className="font-medium">{high ? `>${high}` : 'N/A'}</div>
         </div>
       </div>
+      
+      {/* Description */}
+      {description && (
+        <div className="mt-4 pt-3 border-t border-gray-200">
+          <p className="text-sm text-[#1E293B]/80">{description}</p>
+        </div>
+      )}
     </div>
   )
 } 

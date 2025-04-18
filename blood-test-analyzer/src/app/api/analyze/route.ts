@@ -10,6 +10,7 @@ interface Biomarker {
     max: number;
   };
   orderIndex?: number;
+  description?: string;
 }
 
 interface AnalysisResult {
@@ -26,6 +27,7 @@ interface BiomarkerDefinition {
     min: number;
     max: number;
   };
+  description?: string;
 }
 
 // Common biomarkers with their typical units and reference ranges
@@ -34,11 +36,13 @@ const BIOMARKER_DEFINITIONS: Record<string, BiomarkerDefinition> = {
   // Blood Cell Counts and Measurements
   'Hemoglobin': {
     units: 'g/dL',
-    range: { min: 12, max: 17 }
+    range: { min: 12, max: 17 },
+    description: 'Iron-containing protein in red blood cells that transports oxygen from the lungs to tissues throughout the body and carries carbon dioxide back to the lungs. Low levels may indicate anemia, while high levels can be associated with dehydration or other conditions.'
   },
   'Hematocrit': {
     units: '%',
-    range: { min: 36, max: 52 }
+    range: { min: 36, max: 52 },
+    description: 'The percentage of red blood cells in your total blood volume. It is closely related to hemoglobin levels and helps assess oxygen-carrying capacity. Low levels may indicate anemia, blood loss, or nutritional deficiencies, while high levels can suggest dehydration or polycythemia.'
   },
   'Mean Cell Hemoglobin': {
     units: 'pg',
@@ -487,6 +491,13 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
     'methodology', 'interpretation', 'disclaimer'
   ];
   
+  // List of standalone words that should not be considered biomarkers
+  const standaloneExclusions = [
+    'high', 'low', 'normal', 'optimal', 'reference', 'range', 
+    'results', 'elevated', 'decreased', 'value', 'test', 'standard',
+    'pending', 'final', 'see', 'note', 'positive', 'negative'
+  ];
+  
   // Verify if a string is likely to be a biomarker name
   const isBiomarkerName = (name: string): boolean => {
     // Clean the name
@@ -505,6 +516,11 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
     // Check if the name is a section header
     if (sectionHeaders.some(header => 
       cleanName.toLowerCase().includes(header.toLowerCase()))) {
+      return false;
+    }
+
+    // Check if the name is a standalone excluded word
+    if (standaloneExclusions.includes(cleanName.toLowerCase())) {
       return false;
     }
     
@@ -555,6 +571,22 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
     // Normalize biomarker name - remove newlines and extra spaces
     const normalizedName = name.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
     
+    // Additional validation before adding
+    // Skip if it's a standalone descriptor
+    const standaloneDescriptors = [
+      'high', 'low', 'normal', 'elevated', 'decreased', 'optimal', 
+      'reference', 'range', 'test', 'final', 'positive', 'negative'
+    ];
+    
+    if (standaloneDescriptors.includes(normalizedName.toLowerCase())) {
+      return;
+    }
+    
+    // Check if it's just a status indicator with a number (e.g., "High 50")
+    if (/^(high|low|normal|elevated|decreased)\s+\d+$/i.test(normalizedName)) {
+      return;
+    }
+    
     biomarkers[normalizedName] = biomarker;
     biomarkerPositions.set(normalizedName, position);
     
@@ -568,20 +600,21 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
 
   // Multiple patterns to match different biomarker formats in lab reports
   const patternsList = [
-    // Standard format: Name: Value Unit
-    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g,
+    // Standard format: Name: Value Unit - require name to be at least 3 characters long and have more context
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]{2,}?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g,
     
     // Format with name, value and units with possible whitespace or tabular format
-    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)\s+(\d+\.?\d*)\s+([\w/%\^]+)/g,
+    // Added negative lookbehind to avoid matching just "High" or "Low" as standalone biomarker names
+    /(?<!\b(high|low|normal|elevated|decreased)\s+)([A-Za-z][A-Za-z0-9\s\-\(\)\/]{2,}?)\s+(\d+\.?\d*)\s+([\w/%\^]+)/gi,
     
     // Format with reference ranges in parentheses
-    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s\(]*(?:Reference Range|Normal)[\s:\-]*(\d+\.?\d*)[\s\-]*(\d+\.?\d*)/gi,
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]{2,}?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s\(]*(?:Reference Range|Normal)[\s:\-]*(\d+\.?\d*)[\s\-]*(\d+\.?\d*)/gi,
     
-    // Format with H/L indicators
-    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s]*([HL])/gi,
+    // Format with H/L indicators - added pattern to avoid standalone High/Low
+    /(?<!\b(high|low|normal)\s+)([A-Za-z][A-Za-z0-9\s\-\(\)\/]{2,}?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s]*([HL])/gi,
     
     // Format with name spanning multiple lines (often in PDFs)
-    /([A-Za-z][A-Za-z0-9\s\-\(\)\/\r\n]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/\r\n]{2,}?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g
   ];
   
   const allPotentialMatches: Array<{ name: string, value: number, unit?: string, position: number }> = [];
@@ -590,9 +623,32 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
   for (const pattern of patternsList) {
     let match;
     while ((match = pattern.exec(text)) !== null) {
-      const name = match[1].trim();
-      const value = parseFloat(match[2]);
-      const unit = match[3]?.trim();
+      // Handle different regex patterns with different group structures
+      let name, value, unit;
+      
+      // Check if this is the pattern with negative lookbehind (it will have more groups)
+      if (pattern.toString().includes('?<!')) {
+        // For patterns with negative lookbehind
+        if (pattern.toString().includes('high|low|normal|elevated|decreased')) {
+          // Second pattern with 5 groups (1 is lookbehind, 2 is name, 3 is value, 4 is unit)
+          name = match[2]?.trim();
+          value = parseFloat(match[3]);
+          unit = match[4]?.trim();
+        } else {
+          // Fourth pattern with H/L indicators
+          name = match[2]?.trim();
+          value = parseFloat(match[3]);
+          unit = match[4]?.trim();
+        }
+      } else {
+        // Standard patterns with name in group 1, value in group 2, unit in group 3
+        name = match[1]?.trim();
+        value = parseFloat(match[2]);
+        unit = match[3]?.trim();
+      }
+      
+      // Skip if name or value couldn't be extracted
+      if (!name || isNaN(value)) continue;
       
       // Check if this might be a reference range or a date
       if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(match[0]) || 
@@ -639,7 +695,8 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
         value,
         unit: unit || definition.units,
         referenceRange: definition.range,
-        orderIndex: originalOrder.length
+        orderIndex: originalOrder.length,
+        description: definition.description
       }, position);
     }
   }
@@ -684,7 +741,8 @@ function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomar
       value,
       unit,
       referenceRange,
-      orderIndex: originalOrder.length
+      orderIndex: originalOrder.length,
+      description: BIOMARKER_DEFINITIONS[name]?.description
     }, position);
   }
   

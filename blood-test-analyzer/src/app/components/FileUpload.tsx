@@ -13,6 +13,7 @@ interface Biomarker {
     min: number;
     max: number;
   };
+  description?: string;
 }
 
 interface AnalysisResult {
@@ -278,6 +279,7 @@ export default function FileUpload() {
                             value={results[activeReportIndex].biomarkers[name].value}
                             unit={results[activeReportIndex].biomarkers[name].unit}
                             referenceRange={results[activeReportIndex].biomarkers[name].referenceRange}
+                            description={results[activeReportIndex].biomarkers[name].description}
                           />
                         ))}
                       </div>

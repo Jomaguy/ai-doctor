@@ -11,6 +11,7 @@ interface Biomarker {
     max: number;
   };
   orderIndex?: number; // Add orderIndex to track original position in report
+  description?: string; // Add description field
 }
 
 interface AnalysisResult {
@@ -284,6 +285,18 @@ const isValidBiomarker = (name: string): boolean => {
   cleaned = cleaned.replace(/\s+/g, ' ');
   // Trim whitespace
   cleaned = cleaned.trim();
+  
+  // Standalone words that should not be considered biomarkers
+  const standaloneExclusions = [
+    'high', 'low', 'normal', 'optimal', 'reference', 'range', 
+    'results', 'elevated', 'decreased', 'value', 'test', 'standard',
+    'pending', 'final', 'see', 'note', 'positive', 'negative'
+  ];
+  
+  // Reject if it's just a standalone excluded word
+  if (standaloneExclusions.includes(cleaned.toLowerCase())) {
+    return false;
+  }
   
   // List of names to explicitly exclude
   const excludedNames = [
