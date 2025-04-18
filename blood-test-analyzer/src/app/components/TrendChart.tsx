@@ -58,6 +58,41 @@ const BIOMARKER_CONFIG = {
 
 type BiomarkerKey = keyof typeof BIOMARKER_CONFIG;
 
+// List of known valid biomarkers - ensures we only show actual human biomarkers
+const VALID_BIOMARKERS = [
+  'Glucose', 'Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'Hemoglobin', 'Creatinine',
+  'Albumin', 'ALT', 'AST', 'BUN', 'Calcium', 'Chloride', 'Potassium', 'Sodium',
+  'Phosphorus', 'Protein', 'Bilirubin', 'Uric Acid', 'Vitamin D', 'Ferritin',
+  'Iron', 'Magnesium', 'A1C', 'TSH', 'T3', 'T4', 'Insulin', 'CRP', 'ESR',
+  'WBC', 'RBC', 'Platelets', 'Neutrophils', 'Lymphocytes', 'Monocytes',
+  'Eosinophils', 'Basophils', 'Hematocrit', 'MCV', 'MCH', 'MCHC', 'RDW'
+];
+
+// Helper function to determine if a biomarker is valid
+const isValidBiomarker = (name: string): boolean => {
+  // Check if it's in our predefined list (case-insensitive)
+  const isInList = VALID_BIOMARKERS.some(
+    validName => name.toLowerCase() === validName.toLowerCase()
+  );
+  
+  // Check if it's in our configuration (known biomarkers)
+  const isInConfig = name in BIOMARKER_CONFIG;
+  
+  // Additional checks for non-biomarker patterns
+  const nonBiomarkerWords = [
+    'com', 'health', 'california', 'ca', 'randox', 'monica', 'santa',
+    'center', 'medical', 'clinic', 'laboratories', 'diagnostic', 'inc',
+    'ltd', 'llc', 'corporation', 'test', 'report', 'page', 'date'
+  ];
+  
+  // Exclude if it contains non-biomarker words
+  if (name.split(/\s+/).some(word => nonBiomarkerWords.includes(word.toLowerCase()))) {
+    return false;
+  }
+  
+  return isInList || isInConfig;
+};
+
 export default function TrendChart({ data }: { data: AnalysisResult[] }) {
   console.log('TrendChart data:', data); // Add debugging to see what data is received
   
@@ -66,7 +101,8 @@ export default function TrendChart({ data }: { data: AnalysisResult[] }) {
   // Find all available biomarkers in the data
   const availableBiomarkers = data.reduce((markers, entry) => {
     Object.keys(entry.biomarkers).forEach(key => {
-      if (key in BIOMARKER_CONFIG && !markers.includes(key as BiomarkerKey)) {
+      // Only include valid biomarkers
+      if (isValidBiomarker(key) && key in BIOMARKER_CONFIG && !markers.includes(key as BiomarkerKey)) {
         markers.push(key as BiomarkerKey);
       }
     });

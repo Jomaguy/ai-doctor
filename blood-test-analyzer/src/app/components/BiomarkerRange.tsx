@@ -20,6 +20,98 @@ export interface BiomarkerRangeProps {
   criticalHigh?: number;
 }
 
+// List of known valid biomarkers
+const VALID_BIOMARKERS = [
+  // Blood Cell Counts and Measurements
+  'Hemoglobin', 'Hematocrit', 'Mean Cell Hemoglobin', 'Mean Cell Hemoglobin Concentration',
+  'Mean Cell Volume', 'Red Blood Cells', 'Basophils', 'Eosinophils', 'Lymphocytes',
+  'Monocytes', 'Neutrophils', 'White Blood Cells', 'Platelets',
+  
+  // Iron Status
+  'Ferritin', 'Iron', 'Transferrin', 'TIBC',
+  
+  // Lipid Panel
+  'Total Cholesterol', 'LDL Cholesterol', 'HDL Cholesterol', 'Triglycerides',
+  'Cholesterol', 'LDL', 'HDL',
+  
+  // Inflammation Markers
+  'High Sensitivity C-Reactive Protein', 'hsCRP', 'High Sensitivity C-Reactive Protein (hsCRP)',
+  'CRP', 'ESR', 'C-Reactive Protein',
+  
+  // Glucose Metabolism
+  'Glucose', 'HbA1c', 'A1C', 'Insulin', 'Hemoglobin A1c',
+  
+  // Kidney Function
+  'Albumin', 'Calcium', 'Calcium (adjusted)', 'Creatinine', 'Cystatin C',
+  'Estimated Glomerular Filtration Rate', 'eGFR', 'Estimated Glomerular Filtration Rate (eGFR)',
+  'Magnesium', 'Potassium', 'PotassiumCT', 'Sodium', 'SodiumCT',
+  'Urea', 'BUN', 'Urea (BUN)', 'Chloride', 'Phosphorus',
+  
+  // Liver Function
+  'Alanine Aminotransferase', 'ALT', 'Alanine Aminotransferase (ALT)',
+  'Alkaline Phosphatase', 'ALP', 'Alkaline Phosphatase (ALP)',
+  'Aspartate Aminotransferase', 'AST', 'AST/GOT', 'Aspartate Aminotransferase (AST/GOT)',
+  'Copper', 'Gamma-Glutamyltransferase', 'GGT', 'Gamma-Glutamyltransferase (GGT)',
+  'Total Bilirubin', 'Bilirubin', 'Protein',
+  
+  // Vitamins and Minerals
+  'Folic acid', 'Folate', 'Folic acid/Folate',
+  'Vitamin C', 'Vitamin C deficiency', 'Vitamin C deficiencyRH',
+  'Vitamin B12', 'Vitamin D', 'Vitamin D, 25 Hydroxy',
+  'Zinc', 'ZincRH', 'Zinc High', 'Zinc Low',
+  'Iron', 'Uric Acid',
+  
+  // Thyroid Function
+  'Free Thyroxine', 'FT4', 'Free Thyroxine (FT4)',
+  'Free Tri-iodothyronine', 'FT3', 'Free Tri-iodothyronine (FT3)',
+  'Thyroid Stimulating Hormone', 'TSH', 'Thyroid Stimulating Hormone (TSH)',
+  'T3', 'T4',
+  
+  // Sex Hormones
+  'Sex Hormone Binding Globulin', 'SHBG', 'Sex Hormone Binding Globulin (SHBG)',
+  'Testosterone', 'Testosterone, Total', 'Estradiol',
+  
+  // Additional Biomarkers
+  'Immunoglobulin E', 'IgE', 'Immunoglobulin E (IgE)',
+  'MCV', 'MCH', 'MCHC', 'RDW',
+  
+  // Variations with High/Low indicators
+  'Mean Cell Hemoglobin Concentration Low',
+  'Basophils High',
+  'Creatinine High',
+  'Potassium High',
+  'Albumin High',
+  'Zinc High'
+];
+
+// Helper function to determine if a biomarker is valid
+export const isValidBiomarker = (name: string): boolean => {
+  // Check if it's in our predefined list (case-insensitive)
+  const isInList = VALID_BIOMARKERS.some(
+    validName => {
+      const normalizedName = name.toLowerCase().replace(/\s+/g, ' ').trim();
+      const normalizedValid = validName.toLowerCase().replace(/\s+/g, ' ').trim();
+      return normalizedName === normalizedValid || 
+             normalizedName.includes(normalizedValid) ||
+             normalizedValid.includes(normalizedName);
+    }
+  );
+  
+  // Additional checks for non-biomarker patterns
+  const nonBiomarkerWords = [
+    'com', 'health', 'california', 'ca', 'randox', 'monica', 'santa',
+    'center', 'medical', 'clinic', 'laboratories', 'diagnostic', 'inc',
+    'ltd', 'llc', 'corporation', 'test', 'report', 'page', 'date'
+  ];
+  
+  // Exclude if it contains non-biomarker words
+  if (name.split(/\s+/).some(word => nonBiomarkerWords.includes(word.toLowerCase()))) {
+    return false;
+  }
+  
+  return isInList;
+};
+
 export default function BiomarkerRange({
   name,
   value,
@@ -30,6 +122,11 @@ export default function BiomarkerRange({
   high = referenceRange?.max,
   criticalHigh = referenceRange ? referenceRange.max * 1.3 : undefined,
 }: BiomarkerRangeProps) {
+  // Skip rendering if the biomarker name is not valid
+  if (!isValidBiomarker(name)) {
+    return null;
+  }
+
   if (value === null) {
     return (
       <div className="p-6 bg-white rounded-lg shadow-md mb-4 border border-[#E0F2FE]">

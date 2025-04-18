@@ -9,12 +9,14 @@ interface Biomarker {
     min: number;
     max: number;
   };
+  orderIndex?: number;
 }
 
 interface AnalysisResult {
   fileName: string;
   testDate: string;
   biomarkers: Record<string, Biomarker>;
+  originalOrder?: string[];
   error?: string;
 }
 
@@ -29,9 +31,76 @@ interface BiomarkerDefinition {
 // Common biomarkers with their typical units and reference ranges
 // Used as fallback for providing reference ranges when detected
 const BIOMARKER_DEFINITIONS: Record<string, BiomarkerDefinition> = {
-  'Glucose': {
+  // Blood Cell Counts and Measurements
+  'Hemoglobin': {
+    units: 'g/dL',
+    range: { min: 12, max: 17 }
+  },
+  'Hematocrit': {
+    units: '%',
+    range: { min: 36, max: 52 }
+  },
+  'Mean Cell Hemoglobin': {
+    units: 'pg',
+    range: { min: 27, max: 33 }
+  },
+  'Mean Cell Hemoglobin Concentration': {
+    units: 'g/dL',
+    range: { min: 32, max: 36 }
+  },
+  'Mean Cell Volume': {
+    units: 'fL',
+    range: { min: 80, max: 100 }
+  },
+  'Red Blood Cells': {
+    units: 'x10^12/L',
+    range: { min: 4.2, max: 5.8 }
+  },
+  'Basophils': {
+    units: 'x10^9/L',
+    range: { min: 0, max: 0.2 }
+  },
+  'Eosinophils': {
+    units: 'x10^9/L',
+    range: { min: 0, max: 0.5 }
+  },
+  'Lymphocytes': {
+    units: 'x10^9/L',
+    range: { min: 1.0, max: 4.0 }
+  },
+  'Monocytes': {
+    units: 'x10^9/L',
+    range: { min: 0.2, max: 0.8 }
+  },
+  'Neutrophils': {
+    units: 'x10^9/L',
+    range: { min: 2.0, max: 7.0 }
+  },
+  'White Blood Cells': {
+    units: 'x10^9/L',
+    range: { min: 4.0, max: 11.0 }
+  },
+  'Platelets': {
+    units: 'x10^9/L',
+    range: { min: 150, max: 450 }
+  },
+  'Ferritin': {
+    units: 'ng/mL',
+    range: { min: 20, max: 250 }
+  },
+  
+  // Lipid Panel
+  'Total Cholesterol': {
     units: 'mg/dL',
-    range: { min: 70, max: 100 }
+    range: { min: 125, max: 200 }
+  },
+  'LDL Cholesterol': {
+    units: 'mg/dL',
+    range: { min: 0, max: 100 }
+  },
+  'HDL Cholesterol': {
+    units: 'mg/dL',
+    range: { min: 40, max: 60 }
   },
   'Cholesterol': {
     units: 'mg/dL',
@@ -49,13 +118,151 @@ const BIOMARKER_DEFINITIONS: Record<string, BiomarkerDefinition> = {
     units: 'mg/dL',
     range: { min: 0, max: 150 }
   },
-  'Hemoglobin': {
+  
+  // Inflammation Markers
+  'High Sensitivity C-Reactive Protein (hsCRP)': {
+    units: 'mg/L',
+    range: { min: 0, max: 3 }
+  },
+  'Creatine Kinase (CK-NAC)': {
+    units: 'U/L',
+    range: { min: 30, max: 200 }
+  },
+  
+  // Glucose Metabolism
+  'Glucose': {
+    units: 'mg/dL',
+    range: { min: 70, max: 100 }
+  },
+  'HbA1c': {
+    units: '%',
+    range: { min: 4, max: 5.7 }
+  },
+  
+  // Kidney Function
+  'Albumin': {
     units: 'g/dL',
-    range: { min: 12, max: 17 }
+    range: { min: 3.5, max: 5.0 }
+  },
+  'Calcium (adjusted)': {
+    units: 'mg/dL',
+    range: { min: 8.5, max: 10.5 }
   },
   'Creatinine': {
     units: 'mg/dL',
     range: { min: 0.6, max: 1.2 }
+  },
+  'Cystatin C': {
+    units: 'mg/L',
+    range: { min: 0.5, max: 1.0 }
+  },
+  'Estimated Glomerular Filtration Rate (eGFR)': {
+    units: 'mL/min/1.73m²',
+    range: { min: 90, max: 120 }
+  },
+  'Magnesium': {
+    units: 'mg/dL',
+    range: { min: 1.7, max: 2.3 }
+  },
+  'PotassiumCT': {
+    units: 'mmol/L',
+    range: { min: 3.5, max: 5.2 }
+  },
+  'SodiumCT': {
+    units: 'mmol/L',
+    range: { min: 135, max: 145 }
+  },
+  'Urea (BUN)': {
+    units: 'mg/dL',
+    range: { min: 7, max: 20 }
+  },
+  
+  // Liver Function
+  'Alanine Aminotransferase (ALT)': {
+    units: 'U/L',
+    range: { min: 7, max: 55 }
+  },
+  'Alkaline Phosphatase (ALP)': {
+    units: 'U/L',
+    range: { min: 44, max: 147 }
+  },
+  'Aspartate Aminotransferase (AST/GOT)': {
+    units: 'U/L',
+    range: { min: 8, max: 48 }
+  },
+  'Copper': {
+    units: 'µg/dL',
+    range: { min: 70, max: 140 }
+  },
+  'Gamma-Glutamyltransferase (GGT)': {
+    units: 'U/L',
+    range: { min: 8, max: 61 }
+  },
+  'Total Bilirubin': {
+    units: 'mg/dL',
+    range: { min: 0.1, max: 1.2 }
+  },
+  
+  // Vitamins and Minerals
+  'Folic acid/Folate': {
+    units: 'ng/mL',
+    range: { min: 3, max: 17 }
+  },
+  'Vitamin C deficiencyRH': {
+    units: 'mg/L',
+    range: { min: 0.4, max: 2.0 }
+  },
+  'Vitamin B12': {
+    units: 'pg/mL',
+    range: { min: 200, max: 900 }
+  },
+  'Vitamin D, 25 Hydroxy': {
+    units: 'ng/mL',
+    range: { min: 30, max: 100 }
+  },
+  'ZincRH': {
+    units: 'µmol/L',
+    range: { min: 10, max: 20 }
+  },
+  
+  // Immunoglobulins
+  'Immunoglobulin E (IgE)': {
+    units: 'IU/mL',
+    range: { min: 0, max: 100 }
+  },
+  
+  // Thyroid Function
+  'Free Thyroxine (FT4)': {
+    units: 'ng/dL',
+    range: { min: 0.8, max: 1.8 }
+  },
+  'Free Tri-iodothyronine (FT3)': {
+    units: 'pg/mL',
+    range: { min: 2.3, max: 4.2 }
+  },
+  'Thyroid Stimulating Hormone (TSH)': {
+    units: 'µIU/mL',
+    range: { min: 0.4, max: 4.0 }
+  },
+  
+  // Sex Hormones
+  'Sex Hormone Binding Globulin (SHBG)': {
+    units: 'nmol/L',
+    range: { min: 10, max: 80 }
+  },
+  'Testosterone, Total': {
+    units: 'ng/dL',
+    range: { min: 280, max: 1100 }
+  },
+  'Estradiol': {
+    units: 'pg/mL',
+    range: { min: 10, max: 50 }
+  },
+  
+  // Cancer Markers
+  'Total Prostate Specific Antigen (TPSA)': {
+    units: 'ng/mL',
+    range: { min: 0, max: 4 }
   }
 };
 
@@ -94,10 +301,13 @@ export async function POST(request: Request) {
                 // Extract test date from the PDF
                 const testDate = extractTestDate(text);
 
+                const { biomarkers, originalOrder } = extractAllBiomarkers(text);
+
                 resolve({
                   fileName: (file as File).name,
                   testDate: testDate || new Date().toISOString(), // Fallback to current date if not found
-                  biomarkers: extractAllBiomarkers(text)
+                  biomarkers,
+                  originalOrder,
                 })
               } catch (error) {
                 reject(new Error('Failed to parse PDF content'))
@@ -117,6 +327,7 @@ export async function POST(request: Request) {
             fileName: (file as File).name,
             testDate: new Date().toISOString(), // Default date for error cases
             biomarkers: {},
+            originalOrder: [],
             error: error instanceof Error ? error.message : 'Unknown error occurred'
           }
         }
@@ -255,46 +466,71 @@ function extractTestDate(text: string): string | null {
   return fallbackDate.toISOString(); // Return a fixed fallback date for testing instead of null
 }
 
-function extractAllBiomarkers(text: string): Record<string, Biomarker> {
+function extractAllBiomarkers(text: string): { biomarkers: Record<string, Biomarker>, originalOrder: string[] } {
   const biomarkers: Record<string, Biomarker> = {};
+  const originalOrder: string[] = [];
   
-  // Non-biomarker patterns to exclude
+  // Non-biomarker patterns to exclude - Streamlined to reduce false negatives
   const exclusionPatterns = [
     /address|street|ave|avenue|blvd|boulevard|suite/i,
     /city|state|zip|postal/i,
     /phone|fax|email|contact/i,
-    /name|gender|sex|dob|birth|age/i,
-    /clinic|hospital|lab|laboratory|doctor|dr\./i,
-    /date|time|collected|received|reported/i,
-    /page|report|result|test|sample|specimen/i,
-    /years|months|days|hours|minutes/i,
     /inc\.|llc|corporation|copyright|rights reserved/i,
-    /\d{1,2}\/\d{1,2}\/\d{2,4}/,     // Date patterns like MM/DD/YYYY
-    /\d{3}-\d{3}-\d{4}/,             // Phone number patterns
-    /\d{5}(-\d{4})?/                 // Zip code patterns
+    /randox health/i, // Company names
+    /com$|\.com|www\./i,  // Website/URL fragments
+  ];
+  
+  // List of typical lab report headers/sections to skip
+  const sectionHeaders = [
+    'patient information', 'doctor information', 'laboratory information',
+    'billing information', 'insurance', 'diagnosis', 'specimen', 'comments',
+    'methodology', 'interpretation', 'disclaimer'
   ];
   
   // Verify if a string is likely to be a biomarker name
   const isBiomarkerName = (name: string): boolean => {
+    // Clean the name
+    const cleanName = name.trim().replace(/\s+/g, ' ');
+    
     // Check for exclusion patterns
-    if (exclusionPatterns.some(pattern => pattern.test(name))) {
+    if (exclusionPatterns.some(pattern => pattern.test(cleanName))) {
       return false;
     }
     
     // Check name length (biomarker names aren't typically very short or very long)
-    if (name.length < 3 || name.length > 40) {
+    if (cleanName.length < 3 || cleanName.length > 60) {
       return false;
+    }
+    
+    // Check if the name is a section header
+    if (sectionHeaders.some(header => 
+      cleanName.toLowerCase().includes(header.toLowerCase()))) {
+      return false;
+    }
+    
+    // Check if this is a known biomarker - this gives priority to actual biomarkers
+    const knownBiomarkers = Object.keys(BIOMARKER_DEFINITIONS);
+    const isKnownBiomarker = knownBiomarkers.some(biomarker => {
+      const normalizedName = cleanName.toLowerCase();
+      const normalizedBiomarker = biomarker.toLowerCase();
+      return normalizedName === normalizedBiomarker || 
+             normalizedName.includes(normalizedBiomarker) ||
+             normalizedBiomarker.includes(normalizedName);
+    });
+    
+    if (isKnownBiomarker) {
+      return true;
     }
     
     // Common words that should not be considered biomarkers by themselves
     const commonWords = [
-      'test', 'result', 'value', 'normal', 'high', 'low', 'reference', 'range',
-      'total', 'count', 'level', 'ratio', 'index', 'santa', 'monica', 'clia', 
-      'time', 'provide', 'over', 'clinical', 'diagnostic', 'purposes', 'undefined',
-      'name', 'gender', 'dob'
+      'test', 'result', 'value', 'normal', 'reference', 'range',
+      'name', 'gender', 'dob', 'page', 'report', 'date', 'time',
     ];
     
-    if (commonWords.includes(name.toLowerCase())) {
+    // Don't reject multi-word names if they might be biomarker variations
+    const wordCount = cleanName.split(/\s+/).length;
+    if (wordCount === 1 && commonWords.includes(cleanName.toLowerCase())) {
       return false;
     }
     
@@ -304,106 +540,156 @@ function extractAllBiomarkers(text: string): Record<string, Biomarker> {
   // Verify if a value is likely to be a valid biomarker value
   const isValidValue = (value: number): boolean => {
     // Most biomarker values aren't extremely large numbers
-    // (excluding things like cell counts which can be in millions)
-    if (value < 0 || value > 10000000) {
-      return false;
-    }
-    
-    // Round numbers without decimals are often page numbers, dates, or other non-biomarker values
-    // Only apply this filter for small numbers to avoid excluding legitimate whole-number biomarkers
-    if (value < 100 && value === Math.floor(value) && 
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 25, 30, 40, 50, 75, 90].includes(value)) {
+    if (value < 0 || value > 100000) {
       return false;
     }
     
     return true;
   };
   
-  // First, extract biomarkers from predefined list for better accuracy
-  Object.entries(BIOMARKER_DEFINITIONS).forEach(([biomarker, definition]) => {
-    try {
-      const regex = new RegExp(
-        `${biomarker}[:\\s]+(\\d+\\.?\\d*)\\s*(${definition.units})?`,
-        'i'
-      );
-      const match = text.match(regex);
+  // Create a map to store the positions of biomarkers in the text
+  const biomarkerPositions: Map<string, number> = new Map();
+  
+  // Function to add a biomarker to our result and track its position
+  const addBiomarker = (name: string, biomarker: Biomarker, position: number) => {
+    // Normalize biomarker name - remove newlines and extra spaces
+    const normalizedName = name.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    
+    biomarkers[normalizedName] = biomarker;
+    biomarkerPositions.set(normalizedName, position);
+    
+    // Only add to original order if it doesn't exist yet
+    if (!originalOrder.includes(normalizedName)) {
+      originalOrder.push(normalizedName);
+    }
+  };
+  
+  // Find all potential biomarker matches in the text
 
-      if (match) {
-        biomarkers[biomarker] = {
-          value: parseFloat(match[1]),
-          unit: match[2] || definition.units,
-          referenceRange: definition.range
-        };
+  // Multiple patterns to match different biomarker formats in lab reports
+  const patternsList = [
+    // Standard format: Name: Value Unit
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g,
+    
+    // Format with name, value and units with possible whitespace or tabular format
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)\s+(\d+\.?\d*)\s+([\w/%\^]+)/g,
+    
+    // Format with reference ranges in parentheses
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s\(]*(?:Reference Range|Normal)[\s:\-]*(\d+\.?\d*)[\s\-]*(\d+\.?\d*)/gi,
+    
+    // Format with H/L indicators
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?[\s]*([HL])/gi,
+    
+    // Format with name spanning multiple lines (often in PDFs)
+    /([A-Za-z][A-Za-z0-9\s\-\(\)\/\r\n]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g
+  ];
+  
+  const allPotentialMatches: Array<{ name: string, value: number, unit?: string, position: number }> = [];
+  
+  // Try each pattern to extract biomarkers
+  for (const pattern of patternsList) {
+    let match;
+    while ((match = pattern.exec(text)) !== null) {
+      const name = match[1].trim();
+      const value = parseFloat(match[2]);
+      const unit = match[3]?.trim();
+      
+      // Check if this might be a reference range or a date
+      if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(match[0]) || 
+          /date|time/i.test(name)) {
+        continue;
       }
-    } catch (error) {
-      // Continue with next biomarker on error
+      
+      // Add to potential matches if it passes basic validation
+      if (isBiomarkerName(name) && isValidValue(value)) {
+        allPotentialMatches.push({
+          name,
+          value,
+          unit,
+          position: match.index
+        });
+      }
     }
-  });
+  }
   
-  // Then attempt to extract any biomarker patterns that look like: Name: Value Unit (Range)
-  const generalPattern = /([A-Za-z][A-Za-z0-9\s\-]*?)[\s:\.]+(\d+\.?\d*)[\s]*([\w/%\^]+)?/g;
+  // Try to sort all potential matches by their position in the text
+  allPotentialMatches.sort((a, b) => a.position - b.position);
   
-  let match;
-  while ((match = generalPattern.exec(text)) !== null) {
-    const biomarkerName = match[1].trim();
-    const value = parseFloat(match[2]);
-    const unit = match[3]?.trim();
+  // Now process biomarkers in order
+  
+  // First, extract known biomarkers from the sorted potential matches
+  for (const potentialMatch of allPotentialMatches) {
+    const { name, value, unit, position } = potentialMatch;
     
-    // Skip if already found in predefined list
-    if (biomarkers[biomarkerName]) {
-      continue;
+    // Skip if already processed with the same name
+    if (biomarkers[name]) continue;
+    
+    // Find the matching known biomarker if any
+    const matchingKnownBiomarker = Object.keys(BIOMARKER_DEFINITIONS).find(knownName => {
+      const normalizedName = name.toLowerCase();
+      const normalizedKnown = knownName.toLowerCase();
+      return normalizedName === normalizedKnown || 
+             normalizedName.includes(normalizedKnown) ||
+             normalizedKnown.includes(normalizedName);
+    });
+    
+    if (matchingKnownBiomarker) {
+      const definition = BIOMARKER_DEFINITIONS[matchingKnownBiomarker];
+      addBiomarker(name, {
+        value,
+        unit: unit || definition.units,
+        referenceRange: definition.range,
+        orderIndex: originalOrder.length
+      }, position);
     }
+  }
+  
+  // Then process remaining potential matches with less strict validation
+  for (const potentialMatch of allPotentialMatches) {
+    const { name, value, unit, position } = potentialMatch;
     
-    // Apply our improved filters
-    if (!isBiomarkerName(biomarkerName) || !isValidValue(value)) {
-      continue;
-    }
+    // Skip if already processed with the same name
+    if (biomarkers[name]) continue;
     
-    // Validate unit if present
-    if (unit && !COMMON_UNITS.some(u => unit.toLowerCase().includes(u.toLowerCase()))) {
-      // If unit doesn't match any known units, this may not be a biomarker
-      // But don't exclude it entirely as some reports may not include units
-    }
-    
-    // Context validation - check surrounding text
-    // Biomarker data often appears in structured format with words like "test", "result", "normal" nearby
-    const surroundingText = text.substring(
-      Math.max(0, text.indexOf(match[0]) - 50),
-      Math.min(text.length, text.indexOf(match[0]) + match[0].length + 50)
-    );
-    
-    const contextValidation = /test|result|normal|reference|range|level|high|low/i;
-    if (!contextValidation.test(surroundingText) && !unit) {
-      // If no contextual validation and no unit, less likely to be a biomarker
-      continue;
-    }
-    
-    // Look for reference range pattern after the value
-    const rangeRegex = new RegExp(
-      `${biomarkerName}[\\s:]+${value}[\\s]*(${unit || ''})[\\s]*[\\(\\[]?([\\d\\.]+)\\s*[-–]\\s*([\\d\\.]+)[\\)\\]]?`
-    );
-    const rangeMatch = text.match(rangeRegex);
+    // Look for reference range pattern near this biomarker
+    const contextStart = Math.max(0, position - 100);
+    const contextEnd = Math.min(text.length, position + 200);
+    const surroundingText = text.substring(contextStart, contextEnd);
     
     let referenceRange = undefined;
-    if (rangeMatch && rangeMatch[2] && rangeMatch[3]) {
-      referenceRange = {
-        min: parseFloat(rangeMatch[2]),
-        max: parseFloat(rangeMatch[3])
-      };
-    } else if (BIOMARKER_DEFINITIONS[biomarkerName]) {
-      // Fallback to predefined range if available
-      referenceRange = BIOMARKER_DEFINITIONS[biomarkerName].range;
+    
+    // Try to find reference range in surrounding text
+    const rangePatterns = [
+      new RegExp(`${name}[\\s:]+${value}[\\s]*(${unit || ''})[\\s]*[\\(\\[]?([\\d\\.]+)\\s*[-–]\\s*([\\d\\.]+)[\\)\\]]?`),
+      /Reference Range:?\s*([<>]?\s*\d+\.?\d*)\s*[-–]\s*([<>]?\s*\d+\.?\d*)/i,
+      /Normal Range:?\s*([<>]?\s*\d+\.?\d*)\s*[-–]\s*([<>]?\s*\d+\.?\d*)/i,
+      /\(([<>]?\s*\d+\.?\d*)\s*[-–]\s*([<>]?\s*\d+\.?\d*)\)/
+    ];
+    
+    for (const pattern of rangePatterns) {
+      const rangeMatch = surroundingText.match(pattern);
+      if (rangeMatch && rangeMatch[1] && rangeMatch[2]) {
+        const min = parseFloat(rangeMatch[1].replace(/[<>]/g, '').trim());
+        const max = parseFloat(rangeMatch[2].replace(/[<>]/g, '').trim());
+        
+        if (!isNaN(min) && !isNaN(max) && min < max) {
+          referenceRange = { min, max };
+          break;
+        }
+      }
     }
     
-    biomarkers[biomarkerName] = {
+    // Add to biomarkers with less strict validation now
+    addBiomarker(name, {
       value,
       unit,
-      referenceRange
-    };
+      referenceRange,
+      orderIndex: originalOrder.length
+    }, position);
   }
   
   // Look for reference ranges separately in case they're listed in a different section
-  const rangePattern = /([A-Za-z][A-Za-z0-9\s\-]*?)[\s:\.]+(?:reference|normal|range|ref)[\s:\.]*([<>]?\s*\d+\.?\d*)\s*[-–]\s*([<>]?\s*\d+\.?\d*)/gi;
+  const rangePattern = /([A-Za-z][A-Za-z0-9\s\-\(\)\/]*?)[\s:\.]+(?:reference|normal|range|ref)[\s:\.]*([<>]?\s*\d+\.?\d*)\s*[-–]\s*([<>]?\s*\d+\.?\d*)/gi;
   
   let rangeMatch;
   while ((rangeMatch = rangePattern.exec(text)) !== null) {
@@ -422,5 +708,5 @@ function extractAllBiomarkers(text: string): Record<string, Biomarker> {
     }
   }
   
-  return biomarkers;
+  return { biomarkers, originalOrder };
 } 
