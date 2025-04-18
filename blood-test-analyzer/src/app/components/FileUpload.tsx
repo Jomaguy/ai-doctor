@@ -1,6 +1,6 @@
 // components/FileUpload.tsx
 'use client'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useDropzone } from 'react-dropzone'
 import TrendChart from './TrendChart'
 import BiomarkerRange from './BiomarkerRange'
@@ -33,6 +33,8 @@ export default function FileUpload() {
   const [history, setHistory] = useState<HistoricalResult[]>([])
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [activeTab, setActiveTab] = useState<'biomarkers' | 'trends'>('biomarkers')
+  const [activeReportIndex, setActiveReportIndex] = useState(0)
+  const [viewMode, setViewMode] = useState<'byReport' | 'sideBySide'>('sideBySide')
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {'application/pdf': ['.pdf']},
@@ -45,6 +47,25 @@ export default function FileUpload() {
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index))
   }
+
+  // Extract all unique biomarker names across all reports
+  const uniqueBiomarkers = useMemo(() => {
+    if (results.length === 0) return [];
+    
+    // Create a Set of all biomarker names to ensure uniqueness
+    const biomarkerSet = new Set<string>();
+    
+    results.forEach(result => {
+      if (!result.error) {
+        Object.keys(result.biomarkers).forEach(biomarkerName => {
+          biomarkerSet.add(biomarkerName);
+        });
+      }
+    });
+    
+    // Convert Set to Array and sort alphabetically
+    return Array.from(biomarkerSet).sort();
+  }, [results]);
 
   const analyzeFiles = async () => {
     if (uploadedFiles.length === 0) {
@@ -77,6 +98,7 @@ export default function FileUpload() {
       console.log('API Response:', data.results); // Debug the API response
       
       setResults(data.results)
+      setActiveReportIndex(0) // Reset to first report when new results come in
       
       // Add new results to history with the test date extracted from the PDF
       const newHistoryEntries = data.results.map((result: AnalysisResult) => {
@@ -103,8 +125,92 @@ export default function FileUpload() {
     }
   }
 
+  // Render biomarkers side by side
+  const renderSideBySideBiomarkers = () => {
+    if (uniqueBiomarkers.length === 0) return null;
+    
+    return uniqueBiomarkers.map(biomarkerName => (
+      <div key={biomarkerName} className="mb-12">
+        <h3 className="text-xl font-semibold mb-6 text-[#1E293B] border-b pb-2">
+          {biomarkerName}
+        </h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+          {results.map((result, index) => {
+            // Skip if result has error or doesn't have this biomarker
+            if (result.error || !result.biomarkers[biomarkerName]) return null;
+            
+            const biomarker = result.biomarkers[biomarkerName];
+            
+            return (
+              <div key={index} className="relative">
+                <div className="absolute top-2 right-2 bg-[#E0F2FE] px-2 py-1 rounded text-xs font-medium text-[#2563EB]">
+                  {result.fileName}
+                </div>
+                <BiomarkerRange
+                  name={biomarkerName}
+                  value={biomarker.value}
+                  unit={biomarker.unit}
+                  referenceRange={biomarker.referenceRange}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ));
+  };
+
+  // Render biomarkers by report (original implementation)
+  const renderBiomarkersByReport = () => {
+    return (
+      <>
+        {/* Report Selection Tabs */}
+        {results.length > 1 && (
+          <div className="flex overflow-x-auto mb-6 border-b border-[#E0F2FE] pb-2">
+            {results.map((result, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveReportIndex(index)}
+                className={`px-4 py-2 mr-2 rounded-t-lg text-sm font-medium whitespace-nowrap
+                  ${activeReportIndex === index
+                    ? 'bg-[#E0F2FE] text-[#2563EB]'
+                    : 'text-[#1E293B]/60 hover:text-[#1E293B] hover:bg-[#F8FAFC]'
+                  }
+                  transition-colors
+                `}
+              >
+                {result.fileName}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Active Report Content */}
+        {results.length > 0 && (
+          <div>
+            {results[activeReportIndex].error ? (
+              <p className="text-[#EF4444]">{results[activeReportIndex].error}</p>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(results[activeReportIndex].biomarkers).map(([name, biomarker]) => (
+                  <BiomarkerRange
+                    key={name}
+                    name={name}
+                    value={biomarker.value}
+                    unit={biomarker.unit}
+                    referenceRange={biomarker.referenceRange}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </>
+    );
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-[95vw] mx-auto">
       <div
         {...getRootProps()}
         className={`
@@ -210,7 +316,7 @@ export default function FileUpload() {
       {/* Results Section with Tabs */}
       {(results.length > 0 || history.length > 0) && (
         <div className="bg-white rounded-lg shadow-lg border border-[#E0F2FE] overflow-hidden">
-          {/* Tab Navigation */}
+          {/* Main Tab Navigation */}
           <div className="flex border-b border-[#E0F2FE]">
             <button
               onClick={() => setActiveTab('biomarkers')}
@@ -235,32 +341,40 @@ export default function FileUpload() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-6 lg:p-8">
             {/* Biomarkers Tab Content */}
             {activeTab === 'biomarkers' && results.length > 0 && (
               <div>
-                {results.map((result, index) => (
-                  <div key={index} className="mb-6 last:mb-0">
-                    <h3 className="text-lg font-semibold mb-4 text-[#1E293B]">
-                      Results for {result.fileName}
-                    </h3>
-                    {result.error ? (
-                      <p className="text-[#EF4444]">{result.error}</p>
-                    ) : (
-                      <div className="space-y-6">
-                        {Object.entries(result.biomarkers).map(([name, biomarker]) => (
-                          <BiomarkerRange
-                            key={name}
-                            name={name}
-                            value={biomarker.value}
-                            unit={biomarker.unit}
-                            referenceRange={biomarker.referenceRange}
-                          />
-                        ))}
-                      </div>
-                    )}
+                {/* View Mode Toggle */}
+                <div className="flex justify-end mb-8">
+                  <div className="inline-flex rounded-md shadow-sm">
+                    <button
+                      onClick={() => setViewMode('byReport')}
+                      className={`px-4 py-2 text-sm font-medium rounded-l-lg ${
+                        viewMode === 'byReport'
+                          ? 'bg-[#2563EB] text-white'
+                          : 'bg-white text-[#1E293B] border border-[#E0F2FE] hover:bg-[#F8FAFC]'
+                      }`}
+                    >
+                      By Report
+                    </button>
+                    <button
+                      onClick={() => setViewMode('sideBySide')}
+                      className={`px-4 py-2 text-sm font-medium rounded-r-lg ${
+                        viewMode === 'sideBySide'
+                          ? 'bg-[#2563EB] text-white'
+                          : 'bg-white text-[#1E293B] border border-[#E0F2FE] hover:bg-[#F8FAFC]'
+                      }`}
+                    >
+                      Side by Side
+                    </button>
                   </div>
-                ))}
+                </div>
+
+                {viewMode === 'sideBySide' 
+                  ? renderSideBySideBiomarkers() 
+                  : renderBiomarkersByReport()
+                }
               </div>
             )}
 
