@@ -51,7 +51,7 @@ export default function FileUpload() {
 
   const analyzeFiles = async () => {
     if (uploadedFiles.length === 0) {
-      setUploadError('Please upload at least one file')
+      setUploadError('Upload files here')
       return
     }
 
